@@ -1,0 +1,6 @@
+../Drivers/CMSIS/Include/core_cm3.h:1762:34:__NVIC_SystemReset	4	static,ignoring_inline_asm
+../Core/Src/Bootloader.c:16:6:Bootloader_Init	4	static
+../Core/Src/Bootloader.c:24:6:Bootloader_main	16	static
+../Core/Src/Bootloader.c:171:6:Bootloader_EraseData	16	static
+../Core/Src/Bootloader.c:187:6:Bootloader_WriteData	16	static
+../Core/Src/Bootloader.c:197:9:LineCheckSum_Calculate	24	static
