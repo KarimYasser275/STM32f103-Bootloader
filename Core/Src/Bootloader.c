@@ -13,6 +13,19 @@
 
 Bootloader_Params_t BootLoader ;
 
+/*Private functions declarations*/
+
+static void Bootloader_EraseData(void)
+static void Bootloader_WriteData(uint16_t Data, uint32_t Address)
+static uint8_t LineCheckSum_Calculate(uint8_t arr[] ,uint8_t length)
+static void Bootloader_JmpToAddress(uint32_t address);
+
+
+
+/*------------------------------------------------------ Initialize Bootloader----------------------------------------------/
+ *------------------------------------------------------ Input: none -------------------------------------------------------/
+ *------------------------------------------------------ O/P:   none -------------------------------------------------------/
+****************************************************************************************************************************/
 void Bootloader_Init(void)
 {
 	/*FPEC unlock sequence */
@@ -20,6 +33,11 @@ void Bootloader_Init(void)
 	FPEC_REGISTER->FLASH_KEYR = KEY2 ;
 
 }
+
+/*------------------------------------------------------ Bootloader runnable -----------------------------------------------/
+ *------------------------------------------------------ Input: none -------------------------------------------------------/
+ *------------------------------------------------------ O/P:   none -------------------------------------------------------/
+****************************************************************************************************************************/
 
 void Bootloader_main(void)
 {
@@ -57,7 +75,16 @@ void Bootloader_main(void)
 		BootLoader.address &= 0xffff0000;
 		BootLoader.timeoutCount = 0;
 		BootLoader.sum = 0;
-		BootLoader.state = BL_RECEIVE_LENGTH_BYTE;
+
+		UART_1_RECEIVE( &UART_RxData, 10);
+		if (UART_RxData == ':')
+		{
+			BootLoader.state = BL_RECEIVE_LENGTH_BYTE;
+		}
+		else
+		{
+			BootLoader.state = BL_ERROR;
+		}
 		break;
 
 	case BL_RECEIVE_LENGTH_BYTE:
@@ -150,25 +177,42 @@ void Bootloader_main(void)
 		BootLoader.sum +=1;
 		if (UART_RxData == BootLoader.sum)
 		{
-			BootLoader.state = BL_INITIALIZED;
-			UART_1_TRANSMIT("ok");
+			BootLoader.state = BL_LINE_TRANSFER_COMPLETE;
+		}
+		else
+		{
+			BootLoader.state = BL_ERROR;
 		}
 
 		break;
 
-	case BL_ERROR:
+	case BL_LINE_TRANSFER_COMPLETE:
+		/*Receive new of line character*/
+		UART_1_RECEIVE( &UART_RxData, 10);
+		if (UART_RxData == '\n')
+		{
+			UART_1_TRANSMIT("ok");
+			BootLoader.state = BL_INITIALIZED;
+		}
 
+	case BL_ERROR:
+		/*soft reset*/
 		NVIC_SystemReset();
 
 	case BL_DONE:
 		/*Jump to application address*/
+		Bootloader_JmpToAddress(APPLICATION_START_ADDRESS);
 		break;
 
 	}
 
 }
 
-void Bootloader_EraseData(void)
+/*----------------------------------------------- FPEC page erasing function-----------------------------------------------/
+ *------------------------------------------------------ Input: none-------------------------------------------------------/
+ *------------------------------------------------------ O/P:   none-------------------------------------------------------/
+***************************************************************************************************************************/
+static void Bootloader_EraseData(void)
 {
 	/*Erase all flash memory from 0x8001000 to end of flash*/
 
@@ -184,7 +228,13 @@ void Bootloader_EraseData(void)
 	CLR_BIT(FPEC_REGISTER->FLASH_CR , OFFSET_FLASH_CR_PER); 			// disable page erase
 }
 
-void Bootloader_WriteData(uint16_t Data, uint32_t Address)
+/*----------------------------------------------- FPEC page write function-------------------------------------------------/
+ *----------------------------------------------- Input: Data to be written------------------------------------------------/
+ *------------------------------------------------ Input: Address of data -------------------------------------------------/
+ *------------------------------------------------------ O/P:   none-------------------------------------------------------/
+***************************************************************************************************************************/
+
+static void Bootloader_WriteData(uint16_t Data, uint32_t Address)
 {
 
 	SET_BIT(FPEC_REGISTER->FLASH_CR , OFFSET_FLASH_CR_PG); 				// enable page program
@@ -194,7 +244,12 @@ void Bootloader_WriteData(uint16_t Data, uint32_t Address)
 	CLR_BIT(FPEC_REGISTER->FLASH_CR , OFFSET_FLASH_CR_PG);
 }
 
-uint8_t LineCheckSum_Calculate(uint8_t arr[] ,uint8_t length)
+/*--------------------------------------------- checksum calculation function ---------------------------------------------/
+ *----------------------------------------------- Input: array of numbers--------------------------------------------------/
+ *----------------------------------------------- Input: length of array --------------------------------------------------/
+ *------------------------------------------------- O/P: checksum value ---------------------------------------------------/
+***************************************************************************************************************************/
+static uint8_t LineCheckSum_Calculate(uint8_t arr[] ,uint8_t length)
 {
 	uint16_t retval = 0;
 	for (int i =0; i < length; i++)
@@ -207,3 +262,15 @@ uint8_t LineCheckSum_Calculate(uint8_t arr[] ,uint8_t length)
 	return (uint8_t)retval;
 
 }
+/*---------------------------------------------- Jump to address function -------------------------------------------------/
+ *---------------------------------------------- Input: address to jump to ------------------------------------------------/
+ *------------------------------------------------------ O/P: none----- ---------------------------------------------------/
+***************************************************************************************************************************/
+static void Bootloader_JmpToAddress(uint32_t address)
+{
+	FuncionPtr_t address_call;
+	address_call = *(FuncionPtr_t*)(address + WORD_SIZE);
+	address_call();
+}
+
+

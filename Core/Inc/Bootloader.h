@@ -13,9 +13,12 @@
 #define APPLICATION_START_ADDRESS		0x08002000
 #define APPLICATION_END_ADDRESS			0x08007C00
 #define APPLICATION_LENGTH				64
+#define WORD_SIZE						4
 
 #define BOOTLOADER_START_MSG			0x1f
 #define	APPLICATION_START_MSG			0xf1
+
+typedef void (*FuncionPtr_t)(void);
 
 
 typedef enum
@@ -28,6 +31,7 @@ typedef enum
 	BL_RECEIVE_DATA_BYTES,
 	BL_RECEIVE_BASE_ADDRESS_BYTES,
 	BL_RECEIVE_CHECKSUM_BYTE,
+	BL_LINE_TRANSFER_COMPLETE,
 	BL_ERROR,
 	BL_DONE,
 }Bootloader_State_t;
@@ -39,6 +43,13 @@ typedef enum
 	BL_TYPE_EOF			= 0x01,
 	BL_TYPE_DEFAULT		= 0xff,
 }BootLoader_types;
+
+typedef enum
+{
+	CHECKSUM_NOT_OK,
+	CHECKSUM_OK,
+	CHECKSUM_DEFAULT,
+}Checksum_state_t;
 
 typedef struct
 {
@@ -54,9 +65,8 @@ typedef struct
 
 }Bootloader_Params_t;
 
+/*Function Declarations*/
+
 void Bootloader_main(void);
-void Bootloader_EraseData(void);
-void Bootloader_WriteData(uint16_t Data, uint32_t Address);
-uint8_t LineCheckSum_Calculate(uint8_t arr[] ,uint8_t length);
 
 #endif /* INC_BOOTLOADER_H_ */
